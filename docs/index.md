@@ -31,9 +31,9 @@ Publisher lang files for the [Laravel Framework][link_laravel], [Jetstream][link
     * [Facades](features/facades.md)
         * [Alignment](features/alignment.md)
         * [Facades](features/facades.md)
-            * [Config](features/facades.md#config)
             * [Locales](features/facades.md#locales)
             * [Packages](features/facades.md#packages)
+            * [Plugins](features/facades.md#plugins)
 
 ## License
 

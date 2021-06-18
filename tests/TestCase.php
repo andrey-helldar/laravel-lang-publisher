@@ -4,27 +4,33 @@ namespace Tests;
 
 use Helldar\LaravelLangPublisher\Concerns\Logger;
 use Helldar\LaravelLangPublisher\Concerns\Pathable;
+use Helldar\LaravelLangPublisher\Constants\Config;
 use Helldar\LaravelLangPublisher\Constants\Locales;
-use Helldar\LaravelLangPublisher\Facades\Config as ConfigFacade;
-use Helldar\LaravelLangPublisher\Facades\Packages;
-use Helldar\LaravelLangPublisher\Facades\Path;
+use Helldar\LaravelLangPublisher\Facades\Config as ConfigSupport;
 use Helldar\LaravelLangPublisher\ServiceProvider;
-use Helldar\LaravelLangPublisher\Support\Config;
 use Helldar\Support\Facades\Helpers\Filesystem\Directory;
-use Illuminate\Support\Facades\Config as IlluminateConfig;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    use Logger;
     use Pathable;
+    use Logger;
 
     protected $default_locale = Locales::ENGLISH;
 
     protected $fallback_locale = Locales::KOREAN;
 
-    protected $default_package = 'laravel-lang/lang';
+    protected $emulate = [
+        'laravel/breeze',
+        'laravel/fortify',
+        'laravel/jetstream',
+        'laravel/cashier',
+        'laravel/nova',
+        'laravel/spark-paddle',
+        'laravel/spark-stripe',
+    ];
 
     protected function setUp(): void
     {
@@ -32,28 +38,15 @@ abstract class TestCase extends BaseTestCase
 
         $this->refreshLocales();
 
-        $this->emulateFreePackages();
-        $this->emulatePaidPackages();
+        $this->emulatePackages();
     }
 
-    protected function tearDown(): void
-    {
-        $this->removeEmulatedPackages();
-
-        parent::tearDown();
-    }
-
-    /**
-     * @param  \Illuminate\Foundation\Application  $app
-     *
-     * @return array
-     */
     protected function getPackageProviders($app): array
     {
         return [ServiceProvider::class];
     }
 
-    protected function getEnvironmentSetUp($app): void
+    protected function getEnvironmentSetUp($app)
     {
         /** @var \Illuminate\Config\Repository $config */
         $config = $app['config'];
@@ -68,97 +61,66 @@ abstract class TestCase extends BaseTestCase
             'json' => ['All rights reserved.', 'Baz'],
         ]);
 
+        $config->set(Config::KEY_PUBLIC . '.ignore', [
+            Locales::CATALAN,
+            Locales::GALICIAN,
+        ]);
+
         $config->set(Config::KEY_PUBLIC . '.packages', [
             'andrey-helldar/lang-translations',
         ]);
     }
 
-    protected function path(string $locale, string $filename = null): string
-    {
-        return Path::targetFull($locale, $filename);
-    }
-
-    protected function resources(string $path): string
-    {
-        return resource_path($path);
-    }
-
     protected function copyFixtures(): void
     {
-        File::copy(realpath(__DIR__ . '/fixtures/en.json'), $this->path($this->default_locale, 'en.json'));
-        File::copy(realpath(__DIR__ . '/fixtures/auth.php'), $this->path($this->default_locale, 'auth.php'));
+        $files = [
+            'en.json',
+            'auth.php',
+            'validation.php',
+        ];
+
+        foreach ($files as $filename) {
+            File::copy(realpath(__DIR__ . '/fixtures/' . $filename), $this->path($this->default_locale, $filename));
+        }
     }
 
     protected function refreshLocales(): void
     {
         $this->deleteLocales();
-        $this->installLocale();
+        $this->installLocales();
     }
 
     protected function deleteLocales(): void
     {
-        File::deleteDirectory(ConfigFacade::resourcesPath());
+        $path = ConfigSupport::resources();
+
+        Directory::ensureDelete($path);
     }
 
-    protected function installLocale(): void
+    protected function installLocales(): void
     {
-        $source = $this->pathSource($this->default_package, $this->default_locale);
-        $target = $this->pathTarget($this->default_locale);
-
-        File::copyDirectory($source, $target);
-
-        File::move($target . '/en.json', $target . '/../en.json');
-
-        File::delete($target . '/validation-inline.php');
-        File::deleteDirectory($target . '/packages');
+        Artisan::call('lang:add', [
+            'locales' => [
+                $this->default_locale,
+                $this->fallback_locale,
+            ],
+            '--force' => true,
+        ]);
     }
 
-    protected function emulateFreePackages(): void
+    protected function emulatePackages(): void
     {
-        Directory::ensureDirectory($this->pathVendor() . '/laravel/fortify');
-        Directory::ensureDirectory($this->pathVendor() . '/laravel/jetstream');
-    }
-
-    protected function emulatePaidPackages(bool $full = false): void
-    {
-        Directory::ensureDirectory($this->pathVendor() . '/laravel/spark-stripe');
-        Directory::ensureDirectory($this->pathVendor() . '/laravel/nova');
-
-        if ($full) {
-            Directory::ensureDirectory($this->pathVendor() . '/laravel/cashier');
-            Directory::ensureDirectory($this->pathVendor() . '/laravel/spark-paddle');
+        foreach ($this->emulate as $package) {
+            Directory::ensureDirectory($this->pathVendor($package));
         }
     }
 
     protected function removeEmulatedPackages(): void
     {
-        $names = [
-            '/laravel/cashier',
-            '/laravel/fortify',
-            '/laravel/jetstream',
-            '/laravel/nova',
-            '/laravel/spark-paddle',
-            '/laravel/spark-stripe',
-        ];
+        foreach ($this->emulate as $package) {
+            $path = $this->pathVendor($package);
 
-        foreach ($names as $name) {
-            $path = $this->pathVendor() . $name;
-
-            if (Directory::exists($path)) {
-                Directory::delete($path);
-            }
+            Directory::ensureDelete($path);
         }
-    }
-
-    protected function setPackages(array $packages): void
-    {
-        $key = Config::KEY_PUBLIC;
-
-        IlluminateConfig::set($key . '.packages', $packages);
-    }
-
-    protected function packages(): array
-    {
-        return Packages::get();
     }
 }

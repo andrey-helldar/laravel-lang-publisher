@@ -5,6 +5,9 @@
 All notable changes to this project will be documented in this file.
 
 * [10.x](10-x.md)
+    * [10.1.0](10-x.md#10.1.0)
+    * [10.0.4](10-x.md#10.0.4)
+    * [10.0.3](10-x.md#10.0.3)
     * [10.0.2](10-x.md#10.0.2)
     * [10.0.1](10-x.md#10.0.1)
     * [10.0.0](10-x.md#10.0.0)

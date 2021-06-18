@@ -6,8 +6,7 @@ use Helldar\LaravelLangPublisher\Console\Add;
 use Helldar\LaravelLangPublisher\Console\Remove;
 use Helldar\LaravelLangPublisher\Console\Reset;
 use Helldar\LaravelLangPublisher\Console\Update;
-use Helldar\LaravelLangPublisher\Support\Config;
-use Helldar\LaravelSupport\Facades\App;
+use Helldar\LaravelLangPublisher\Constants\Config;
 use Illuminate\Support\ServiceProvider as BaseServiceProvider;
 
 final class ServiceProvider extends BaseServiceProvider
@@ -42,16 +41,7 @@ final class ServiceProvider extends BaseServiceProvider
 
     protected function config(): void
     {
-        if ($this->isLumen()) {
-            $this->app->configure(Config::KEY_PUBLIC);
-        }
-
         $this->mergeConfigFrom(__DIR__ . '/../config/public.php', Config::KEY_PUBLIC);
         $this->mergeConfigFrom(__DIR__ . '/../config/private.php', Config::KEY_PRIVATE);
-    }
-
-    protected function isLumen(): bool
-    {
-        return App::isLumen();
     }
 }

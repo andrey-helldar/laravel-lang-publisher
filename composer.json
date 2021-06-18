@@ -1,13 +1,15 @@
 {
     "name": "andrey-helldar/laravel-lang-publisher",
-    "description": "Publisher lang files for the Laravel Framework, Jetstream, Fortify, Cashier, Spark and Nova from Laravel-Lang/lang",
+    "description": "Publisher lang files for the Laravel and Lumen Frameworks, Jetstream, Fortify, Cashier, Spark and Nova from Laravel-Lang/lang",
     "type": "library",
     "license": "MIT",
     "keywords": [
+        "breeze",
         "cashier",
         "fortify",
         "i18n",
         "jetstream",
+        "framework",
         "lang",
         "languages",
         "laravel",
@@ -39,13 +41,13 @@
     "require": {
         "php": "^7.3|^8.0",
         "ext-json": "*",
-        "andrey-helldar/laravel-support": "^2.0",
         "andrey-helldar/pretty-array": "^2.0",
-        "andrey-helldar/support": "^3.16.1",
+        "andrey-helldar/support": "^3.22",
         "andrey-helldar/verbose": "^1.2",
+        "illuminate/contracts": "^7.0|^8.0",
         "illuminate/console": "^7.0|^8.0",
         "illuminate/support": "^7.0|^8.0",
-        "laravel-lang/lang": "~10.0.0"
+        "laravel-lang/lang": "^10.1"
     },
     "require-dev": {
         "andrey-helldar/lang-translations": "^4.0",

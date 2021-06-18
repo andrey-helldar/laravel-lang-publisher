@@ -23,23 +23,12 @@ trait Logger
     {
         foreach ($values as &$value) {
             switch (gettype($value)) {
-                case 'boolean':
-                case 'bool':
-                    $value = $value ? '"true"' : '"false"';
-                    break;
-
-                case 'integer':
-                case 'double':
-                    $value = '"' . $value . '"';
-                    break;
-
                 case 'array':
                     $value = implode(', ', $value);
                     break;
 
-                case 'NULL':
-                    $value = '"null"';
-                    break;
+                default:
+                    $value = json_encode($value);
             }
         }
 

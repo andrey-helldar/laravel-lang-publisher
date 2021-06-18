@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static bool hasAlignment()
  * @method static bool hasInline()
  * @method static int getCase()
- * @method static string basePath()
  * @method static string defaultLocale()
  * @method static string fallbackLocale()
- * @method static string localesPath()
- * @method static string resourcesPath()
- * @method static string sourcePath()
+ * @method static string locales()
+ * @method static string resources()
+ * @method static string source()
+ * @method static string vendor()
  */
 final class Config extends Facade
 {

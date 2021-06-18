@@ -2,19 +2,18 @@
 
 namespace Helldar\LaravelLangPublisher\Support;
 
-use Helldar\LaravelLangPublisher\Concerns\Logger;
+use Helldar\LaravelLangPublisher\Concerns\Has;
 use Helldar\LaravelLangPublisher\Constants\Locales as LocalesList;
-use Helldar\LaravelLangPublisher\Facades\Arr as ArrFacade;
-use Helldar\LaravelLangPublisher\Facades\Config as ConfigFacade;
-use Helldar\LaravelLangPublisher\Facades\Reflection as ReflectionFacade;
-use Helldar\Support\Facades\Helpers\Arr;
+use Helldar\LaravelLangPublisher\Facades\Config as ConfigSupport;
+use Helldar\LaravelLangPublisher\Facades\Path as PathSupport;
+use Helldar\LaravelLangPublisher\Facades\Reflection as ReflectionSupport;
+use Helldar\Support\Facades\Helpers\Ables\Arrayable;
 use Helldar\Support\Facades\Helpers\Filesystem\Directory;
 use Helldar\Support\Facades\Helpers\Filesystem\File;
-use Helldar\Support\Facades\Helpers\Str;
 
 final class Locales
 {
-    use Logger;
+    use Has;
 
     /**
      * List of available locations.
@@ -23,8 +22,6 @@ final class Locales
      */
     public function available(): array
     {
-        $this->log('Getting list of available locations.');
-
         $locales = $this->all();
 
         return $this->filter($locales);
@@ -37,16 +34,15 @@ final class Locales
      */
     public function installed(): array
     {
-        $this->log('Getting list of installed locations...');
-
-        $json = $this->findJsonFiles();
-        $php  = $this->findPhpFiles();
-
-        $installed = ArrFacade::unique(array_merge($json, $php));
-
-        $sorted = Arr::sort($installed);
-
-        return array_values($sorted);
+        return Arrayable::of()
+            ->merge($this->findJson(), $this->findPhp())
+            ->filter(function ($locale) {
+                return $this->isAvailable($locale);
+            })
+            ->unique()
+            ->sort()
+            ->values()
+            ->get();
     }
 
     /**
@@ -56,12 +52,12 @@ final class Locales
      */
     public function protects(): array
     {
-        $this->log('Retrieving a list of protected locales...');
-
-        return ArrFacade::unique([
+        return Arrayable::of([
             $this->getDefault(),
             $this->getFallback(),
-        ]);
+        ])
+            ->unique()
+            ->get();
     }
 
     /**
@@ -71,13 +67,16 @@ final class Locales
      */
     public function all(): array
     {
-        $this->log('Getting a list of all available localizations without filtering...');
+        $locales = ReflectionSupport::getConstants(LocalesList::class);
 
-        return array_values(ReflectionFacade::getConstants(LocalesList::class));
+        return Arrayable::of($locales)
+            ->sort()
+            ->values()
+            ->get();
     }
 
     /**
-     * Checks if a language pack is installed.
+     * Checks if a localization is available.
      *
      * @param  string  $locale
      *
@@ -85,13 +84,11 @@ final class Locales
      */
     public function isAvailable(string $locale): bool
     {
-        $this->log('Checks if a language pack is installed:', $locale);
-
-        return in_array($locale, $this->all(), true);
+        return $this->in($locale, $this->available());
     }
 
     /**
-     * The checked locale protecting.
+     * Checks if a localization is protected.
      *
      * @param  string  $locale
      *
@@ -99,13 +96,11 @@ final class Locales
      */
     public function isProtected(string $locale): bool
     {
-        $this->log('The checked locale protecting:', $locale);
-
-        return $locale === $this->getDefault() || $locale === $this->getFallback();
+        return $this->in($locale, $this->protects());
     }
 
     /**
-     * Checks whether it is possible to install the language pack.
+     * Checks if a localization is installed.
      *
      * @param  string  $locale
      *
@@ -113,9 +108,7 @@ final class Locales
      */
     public function isInstalled(string $locale): bool
     {
-        $this->log('Checks whether it is possible to install the language pack:', $locale);
-
-        return in_array($locale, $this->installed(), true);
+        return $this->in($locale, $this->installed());
     }
 
     /**
@@ -125,9 +118,7 @@ final class Locales
      */
     public function getDefault(): string
     {
-        $this->log('Getting the default localization name...');
-
-        return ConfigFacade::defaultLocale();
+        return ConfigSupport::defaultLocale();
     }
 
     /**
@@ -137,47 +128,48 @@ final class Locales
      */
     public function getFallback(): string
     {
-        $this->log('Getting the fallback localization name...');
-
-        return ConfigFacade::fallbackLocale();
+        return ConfigSupport::fallbackLocale();
     }
 
     protected function filter(array $locales): array
     {
-        $this->log('Filtering localizations...');
+        $ignores = ConfigSupport::ignores();
 
-        $unique = ArrFacade::unique($locales);
-        $ignore = ConfigFacade::ignores();
-
-        return array_values(array_filter($unique, static function ($locale) use ($ignore) {
-            return ! in_array($locale, $ignore, true);
-        }));
+        return Arrayable::of($locales)
+            ->unique()
+            ->filter(function ($locale) use ($ignores) {
+                return $this->isProtected($locale) || ! $this->in($locale, $ignores);
+            })
+            ->values()
+            ->get();
     }
 
-    protected function findJsonFiles(): array
+    protected function in(string $locale, array $locales): bool
     {
-        $this->log('Getting a list of localizations from json files...');
-
-        $files = File::names($this->resourcesPath());
-
-        return Arr::map($files, static function ($filename) {
-            return Str::before($filename, '.');
-        });
+        return in_array($locale, $locales, true);
     }
 
-    protected function findPhpFiles(): array
+    protected function findJson(): array
     {
-        $this->log('Getting a list of localizations from php files...');
+        $files = File::names($this->resourcesPath(), null, true);
 
-        return Directory::names($this->resourcesPath(), static function ($name) {
-            return ! in_array($name, ['spark', 'vendor'], true);
-        });
+        return Arrayable::of($files)
+            ->filter(function (string $filename) {
+                return $this->hasJson($filename);
+            })
+            ->map(static function (string $filename) {
+                return PathSupport::filename($filename);
+            })
+            ->get();
+    }
+
+    protected function findPhp(): array
+    {
+        return Directory::names($this->resourcesPath());
     }
 
     protected function resourcesPath(): string
     {
-        $this->log('Getting the path to application resources...');
-
-        return ConfigFacade::resourcesPath();
+        return ConfigSupport::resources();
     }
 }
